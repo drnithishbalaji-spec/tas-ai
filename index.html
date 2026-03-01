@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TAS AI Platform</title>
+    <!-- Tailwind CSS for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- React and Babel for running JSX in browser -->
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-8px); }
+            75% { transform: translateX(8px); }
+        }
+        .shake { animation: shake 0.2s ease-in-out 0s 2; }
+    </style>
+</head>
+<body class="bg-slate-50">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+
+        // --- ICON COMPONENTS (Lucide wrapper for browser) ---
+        const Icon = ({ name, size = 20, className = "" }) => {
+            const iconRef = useRef(null);
+            useEffect(() => {
+                if (window.lucide) {
+                    window.lucide.createIcons();
+                }
+            }, [name]);
+            return <i data-lucide={name} className={className} style={{ width: size, height: size }}></i>;
+        };
+
+        const App = () => {
+            const [currentPage, setCurrentPage] = useState('auth');
+            const [userName, setUserName] = useState('');
+            const [pin, setPin] = useState(['', '', '', '', '', '']);
+            const [isLoading, setIsLoading] = useState(false);
+            const [error, setError] = useState('');
+            const [isShaking, setIsShaking] = useState(false);
+            const [messages, setMessages] = useState([]);
+            const [input, setInput] = useState('');
+            const [isTyping, setIsTyping] = useState(false);
+            const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+            const pinInputs = useRef([]);
+            const scrollRef = useRef(null);
+
+            const CORRECT_PIN = "123456"; 
+
+            useEffect(() => {
+                if (currentPage === 'ai' && messages.length === 0) {
+                    setMessages([{
+                        role: 'assistant',
+                        content: `Hello ${userName}! I am TAS AI. How can I assist you today?`,
+                        sources: []
+                    }]);
+                }
+            }, [currentPage]);
+
+            const handlePinChange = (val, idx) => {
+                if (val !== "" && !/^\d+$/.test(val)) return;
+                const newPin = [...pin];
+                newPin[idx] = val.slice(-1);
+                setPin(newPin);
+                if (val && idx < 5) pinInputs.current[idx + 1].focus();
+            };
+
+            const handleAuth = (e) => {
+                e.preventDefault();
+                setIsLoading(true);
+                setTimeout(() => {
+                    setIsLoading(false);
+                    if (pin.join('') === CORRECT_PIN) {
+                        setCurrentPage('ai');
+                    } else {
+                        setError("Incorrect PIN");
+                        setIsShaking(true);
+                        setPin(['','','','','','']);
+                        setTimeout(() => setIsShaking(false), 500);
+                    }
+                }, 1000);
+            };
+
+            if (currentPage === 'auth') {
+                return (
+                    <div className="min-h-screen flex items-center justify-center p-6">
+                        <div className={`w-full max-w-md bg-white rounded-[2.5rem] shadow-2xl p-10 text-center ${isShaking ? 'shake border-red-200 border' : ''}`}>
+                            <div className="bg-indigo-600 p-4 rounded-2xl inline-block mb-6 text-white">
+                                <Icon name="key" size={32} />
+                            </div>
+                            <h1 className="text-3xl font-black mb-8">TAS AI</h1>
+                            <form onSubmit={handleAuth} className="space-y-6">
+                                <input 
+                                    className="w-full p-4 bg-slate-50 border rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500"
+                                    placeholder="Your Name"
+                                    required
+                                    value={userName}
+                                    onChange={e => setUserName(e.target.value)}
+                                />
+                                <div className="flex justify-between gap-2">
+                                    {pin.map((d, i) => (
+                                        <input 
+                                            key={i}
+                                            ref={el => pinInputs.current[i] = el}
+                                            className="w-12 h-16 text-center text-2xl font-bold bg-slate-50 border rounded-xl focus:border-indigo-500 outline-none"
+                                            value={d}
+                                            onChange={e => handlePinChange(e.target.value, i)}
+                                            onKeyDown={e => e.key === 'Backspace' && !pin[i] && i > 0 && pinInputs.current[i-1].focus()}
+                                        />
+                                    ))}
+                                </div>
+                                <button className="w-full bg-indigo-600 text-white p-4 rounded-2xl font-bold">
+                                    {isLoading ? "Loading..." : "Enter Platform"}
+                                </button>
+                            </form>
+                            {error && <p className="mt-4 text-red-500 font-bold">{error}</p>}
+                        </div>
+                    </div>
+                );
+            }
+
+            return (
+                <div className="flex flex-col h-screen bg-white">
+                    <nav className="p-4 border-b flex justify-between items-center bg-white sticky top-0">
+                        <div className="flex items-center gap-2 font-black text-slate-800">
+                            <Icon name="sparkles" className="text-indigo-600" /> TAS AI
+                        </div>
+                        <div className="flex items-center gap-3">
+                            <button onClick={() => setShowDeleteConfirm(!showDeleteConfirm)} className="text-red-400 p-2"><Icon name="shield-alert" /></button>
+                            <button onClick={() => window.location.reload()} className="text-slate-400 p-2"><Icon name="log-out" /></button>
+                        </div>
+                    </nav>
+
+                    {showDeleteConfirm && (
+                        <div className="bg-red-600 text-white p-4 flex justify-between items-center animate-bounce">
+                            <span className="font-bold text-sm text-center">Delete Account Forever?</span>
+                            <button onClick={() => window.location.reload()} className="bg-white text-red-600 px-4 py-2 rounded-lg font-black text-xs">YES, DELETE</button>
+                        </div>
+                    )}
+
+                    <main className="flex-1 overflow-y-auto p-4 space-y-6">
+                        {messages.map((m, i) => (
+                            <div key={i} className={`flex gap-3 ${m.role === 'user' ? 'flex-row-reverse' : ''}`}>
+                                <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${m.role === 'user' ? 'bg-indigo-600 text-white' : 'bg-slate-100 border'}`}>
+                                    <Icon name={m.role === 'user' ? 'user' : 'bot'} size={18} />
+                                </div>
+                                <div className={`p-4 rounded-2xl max-w-[80%] ${m.role === 'user' ? 'bg-indigo-600 text-white rounded-tr-none' : 'bg-slate-50 border rounded-tl-none'}`}>
+                                    {m.content}
+                                </div>
+                            </div>
+                        ))}
+                    </main>
+
+                    <footer className="p-4 border-t">
+                        <div className="max-w-3xl mx-auto flex gap-2">
+                            <input className="flex-1 p-4 bg-slate-50 border rounded-2xl outline-none" placeholder="Ask anything..." />
+                            <button className="p-4 bg-indigo-600 text-white rounded-2xl"><Icon name="send" /></button>
+                        </div>
+                    </footer>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
+
